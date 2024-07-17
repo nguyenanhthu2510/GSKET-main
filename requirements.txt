@@ -1,0 +1,21 @@
+torch==2.2.1
+torchvision==0.17.1
+torchaudio==2.2.1
+
+dgl==2.1.0
+ipdb==0.13.13
+transformers==4.42.4
+pycocoevalcap==1.2
+pycocotools==2.0.8
+torchdata==0.7.1
+tensorboardX==2.6.2.2
+emoji==2.12.1
+stanza==1.8.2
+yacs==0.1.8
+# numpy==2.0.0
+scipy==1.14.0
+pandas==2.2.2
+scikit-image==0.24.0
+pyarrow==16.1.0
+pydantic==2.8.2
+lmdb==1.5.1
