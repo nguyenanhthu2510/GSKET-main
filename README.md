@@ -5,7 +5,6 @@
 ### Bước 0: Tải Anaconda, dữ liệu và các file chạy cần thiết
 - Đảm bảo đã cài đặt Anaconda trước khi tiếp tục.
 - Lấy dữ liệu tại https://drive.google.com/file/d/1BAb1IKdb8VkRGCPptWgXdP9s1kQXRAjA/view?usp=sharing, unzip file vào trong thư mục data/iu/dataset/
-- Vào link github "https://github.com/nguyenanhthu2510/GSKET-extra.git" để lấy toàn bộ file .sh, tải và đưa vào thư mục chứa mã nguồn
 
 ### Bước 1: Cài đặt thư viện
 - Mở terminal và di chuyển đến thư mục chứa mã nguồn.
