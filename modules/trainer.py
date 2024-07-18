@@ -131,7 +131,7 @@ class BaseTrainer(object):
 
         if not os.path.exists(self.args.record_dir):
             os.makedirs(self.args.record_dir)
-        record_path = os.path.join(self.args.record_dir, self.args.dataset_name, str(self.args.epochs)+'.csv')
+        record_path = os.path.join(self.args.record_dir, self.args.dataset_name+f'{self.args.epochs}.csv')
         if not os.path.exists(record_path):
             record_table = pd.DataFrame()
             # record_table.columns = self.best_recorder['val'].keys()

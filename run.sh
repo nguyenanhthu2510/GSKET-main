@@ -1,6 +1,6 @@
 source activate thuna  
 
-epochs=(100 300 500 1000)
+epochs=(1)
 
 # Loop through each epoch
 for e in "${epochs[@]}"
