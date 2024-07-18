@@ -131,13 +131,14 @@ class BaseTrainer(object):
 
         if not os.path.exists(self.args.record_dir):
             os.makedirs(self.args.record_dir)
-        record_path = os.path.join(self.args.record_dir, self.args.dataset_name+'.csv')
+        record_path = os.path.join(self.args.record_dir, self.args.dataset_name, str(self.args.epochs)+'.csv')
         if not os.path.exists(record_path):
             record_table = pd.DataFrame()
+            # record_table.columns = self.best_recorder['val'].keys()
         else:
             record_table = pd.read_csv(record_path)
-        record_table = pd.concat([record_table, self.best_recorder['val']], ignore_index=True)
-        record_table = pd.concat([record_table,self.best_recorder['test']], ignore_index=True)
+        record_table = pd.concat([record_table, pd.DataFrame(self.best_recorder['val'].values()).T], ignore_index=True)
+        record_table = pd.concat([record_table, pd.DataFrame(self.best_recorder['test'].values()).T], ignore_index=True)
         record_table.to_csv(record_path, index=False)
 
     def _prepare_device(self, n_gpu_use):

@@ -149,9 +149,11 @@ def parse_opt(prefix=None):
 
     # add training parameters to save dir
     if args.resume == None or args.expe_name != '':
+        # expe_name = f"V{args.version}" \
+        #             + ("_" + args.expe_name if args.expe_name != "" else "") \
+        #             + (datetime.now() + timedelta(hours=15)).strftime("_%Y%m%d-%H%M%S")
         expe_name = f"V{args.version}" \
-                    + ("_" + args.expe_name if args.expe_name != "" else "") \
-                    + (datetime.now() + timedelta(hours=15)).strftime("_%Y%m%d-%H%M%S")
+                    + ("_" + str(args.epochs) + "epochs")
         expe_name = prefix + '_' + expe_name if prefix else expe_name
         args.save_dir = os.path.join(args.save_dir, args.dataset_name, expe_name)
     else:
