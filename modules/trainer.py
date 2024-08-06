@@ -94,7 +94,7 @@ class BaseTrainer(object):
                         not_improved_count = 0
 
                     else:
-                        not_improved_count += 1
+                        not_improved_count = not_improved_count + 1
 
                     if not_improved_count > self.early_stop:
                         logging.info("Validation performance didn\'t improve for {} epochs. " "Training stops.".format(
@@ -285,7 +285,7 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
             outputs = self.model(images, self.graph, con_reports, reports_ids, mode='train')
             loss = self.criterion(outputs, reports_ids, reports_masks)
-            train_loss += loss.item()
+            train_loss = train_loss + loss.item()
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), self.args.grad_clip)
             self.optimizer.step()

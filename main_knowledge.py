@@ -72,7 +72,7 @@ class Trainer_Graph(Trainer):
 
             loss = self.criterion(output, reports_ids, reports_mask)
 
-            train_loss += loss.item()
+            train_loss = train_loss + loss.item()
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), self.args.grad_clip)
             self.optimizer.step()

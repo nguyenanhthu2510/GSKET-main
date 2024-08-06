@@ -38,7 +38,7 @@ def parse_opt(prefix=None):
 
     # Model settings (for visual extractor)
     parser.add_argument('-v', '--version', type=str, default="1", help='main model version')
-    parser.add_argument('--visual_extractor', type=str, default='resnet101', choices=['densenet', 'efficientnet', 'resnet101'],
+    parser.add_argument('--visual_extractor', type=str, default='resnet101', choices=['densenet', 'efficientnet', 'resnet101', 'swin'],
                         help='the visual extractor to be used.')
     parser.add_argument('--visual_extractor_pretrained', type=bool, default=True,
                         help='whether to load the pretrained visual extractor')
@@ -51,7 +51,7 @@ def parse_opt(prefix=None):
     parser.add_argument('--d_model', type=int, default=512, help='the dimension of Transformer.')
     parser.add_argument('--d_graph', type=int, default=512, help='the dimension of Transformer.')
     parser.add_argument('--d_ff', type=int, default=512, help='the dimension of FFN.')
-    parser.add_argument('--d_vf', type=int, default=1280, help='for densenet = 1024, for efficientnet = 1280')
+    parser.add_argument('--d_vf', type=int, default=1280, help='for densenet = 1024, for efficientnet = 1280, for swin = 1024')
     parser.add_argument('--num_heads', type=int, default=8, help='the number of heads in Transformer.')
     parser.add_argument('--num_layers', type=int, default=6, help='the number of layers of Transformer.')
     parser.add_argument('--dropout', type=float, default=0.1, help='the dropout rate of Transformer.')
@@ -176,6 +176,8 @@ def parse_opt(prefix=None):
         args.d_vf = 1024
     elif args.visual_extractor == "resnet101" and args.d_vf != 2048:
         args.d_vf = 2048
+    elif args.visual_extractor == "swin" and args.d_vf != 1024:
+        args.d_vf = 1024
     logging.info(f"Visual Extractor:{args.visual_extractor}   d_vf: {args.d_vf}")
 
     # set gpu
