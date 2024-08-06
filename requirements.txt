@@ -19,3 +19,4 @@ scikit-image==0.24.0
 pyarrow==16.1.0
 pydantic==2.8.2
 lmdb==1.5.1
+timm==1.0.8
