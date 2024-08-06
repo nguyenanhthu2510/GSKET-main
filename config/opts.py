@@ -153,7 +153,7 @@ def parse_opt(prefix=None):
         #             + ("_" + args.expe_name if args.expe_name != "" else "") \
         #             + (datetime.now() + timedelta(hours=15)).strftime("_%Y%m%d-%H%M%S")
         expe_name = f"V{args.version}" \
-                    + ("_" + str(args.epochs) + "epochs")
+                    + ("_" + args.visual_extractor + '_' + str(args.epochs) + "epochs")
         expe_name = prefix + '_' + expe_name if prefix else expe_name
         args.save_dir = os.path.join(args.save_dir, args.dataset_name, expe_name)
     else:
