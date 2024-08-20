@@ -170,8 +170,8 @@ def parse_opt(prefix=None):
     logging.info(f'Logging Dir: {args.save_dir}')
 
     # modify visual feature projection dimension
-    if args.visual_extractor == "efficientnet" and args.d_vf != 1280:
-        args.d_vf = 1280
+    if args.visual_extractor == "efficientnet" and args.d_vf != 1536:
+        args.d_vf = 1536
     elif args.visual_extractor == "densenet" and args.d_vf != 1024:
         args.d_vf = 1024
     elif args.visual_extractor == "resnet101" and args.d_vf != 2048:

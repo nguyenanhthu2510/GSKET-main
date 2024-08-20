@@ -37,6 +37,7 @@ class VisualExtractor(nn.Module):
         super(VisualExtractor, self).__init__()
         self.args = args
         logging.info(f"=> creating model '{args.visual_extractor}'")
+        
         if args.visual_extractor == 'densenet':
             self.model = DenseNet121(args.num_labels)
             self.avg_fnt = torch.nn.AvgPool2d(kernel_size=7, stride=1, padding=0)
@@ -46,15 +47,7 @@ class VisualExtractor(nn.Module):
                 checkpoint = torch.load(args.pretrain_cnn_file, map_location='cuda:{}'.format(args.gpu))
                 self.model.load_state_dict(checkpoint['state_dict'])
         
-        elif 'swin' in args.visual_extractor:
-            # self.visual_extractor = args.visual_extractor
-            # self.model = create_model('swin_base_patch4_window7_224', pretrained=True)
-            # self.model.head = nn.Identity()  # Remove the classification head
-            # # Pooling layer for Transformer outputs
-            # self.avg_fnt = nn.AdaptiveAvgPool2d((1, 1))
-            # self.reduce_dim = nn.Linear(in_features=1024, out_features=768)
-            # self.classifier = nn.Linear(768, args.num_labels)
-            
+        elif 'swin' in args.visual_extractor:            
             pretrained = False if args.pretrain_cnn_file and len(args.pretrain_cnn_file) > 0 else True
             if not pretrained:
                 model = timm.create_model('swin_base_patch4_window7_224', pretrained=pretrained, num_classes=18)
@@ -71,7 +64,7 @@ class VisualExtractor(nn.Module):
             self.classifier = nn.Linear(model.num_features, args.num_labels)
 
                         
-        elif 'resnet' in self.args.visual_extractor.visual_extractor:
+        elif 'resnet' in self.args.visual_extractor:
             self.visual_extractor = args.visual_extractor
             # 是否加载Pytorch ZOO的预训练权重
             pretrained = False if args.pretrain_cnn_file and len(args.pretrain_cnn_file) > 0 else True
@@ -90,6 +83,27 @@ class VisualExtractor(nn.Module):
             self.model = nn.Sequential(*modules)
             self.avg_fnt = torch.nn.AvgPool2d(kernel_size=7, stride=1, padding=0)
             self.classifier = nn.Linear(2048, args.num_labels)
+        
+        elif 'efficientnet' in self.args.visual_extractor:
+            self.visual_extractor = args.visual_extractor
+            # Determine whether to load pre-trained weights from the PyTorch ZOO
+            pretrained = False if args.pretrain_cnn_file and len(args.pretrain_cnn_file) > 0 else True
+            if not pretrained:
+                model = timm.create_model('efficientnet_b3', num_classes=18, pretrained=pretrained)
+                model.conv_stem = torch.nn.Conv2d(1, 40, kernel_size=3, stride=2, padding=1, bias=False)
+                # Load custom pre-trained weights
+                model.load_state_dict(torch.load(args.pretrain_cnn_file).state_dict())
+                logging.info(f'Loaded pretrain cnn file: {args.pretrain_cnn_file}')
+                model.conv_stem = torch.nn.Conv2d(3, 40, kernel_size=3, stride=2, padding=1, bias=False)
+            else:
+                model = timm.create_model('efficientnet_b3', pretrained=pretrained)
+                logging.info('Loaded torchvision pretrained file')
+                
+            modules = list(model.children())[:-2]  # Keep all layers except the last two
+            self.model = nn.Sequential(*modules)
+            self.avg_fnt = nn.AdaptiveAvgPool2d(1)
+            self.classifier = nn.Linear(model.num_features, args.num_labels)
+
         else:
             raise NotImplementedError
 
@@ -113,39 +127,13 @@ class VisualExtractor(nn.Module):
             # print(avg_feats.shape)        # torch.Size([64, 1024])
             labels = self.classifier(avg_feats)
             
-        # elif self.args.visual_extractor == 'swin':
-        #     patch_feats = self.model(images)
-        #     print(patch_feats.shape)        # torch.Size([64, 7, 7, 1024])
-            
-        #     if patch_feats.dim() == 4:
-        #         patch_feats = patch_feats.permute(0, 3, 1, 2)
-        #         avg_feats = self.avg_fnt(patch_feats)  # Shape: [64, 1024, 1, 1]    torch.Size([64, 7, 1, 1])
-        #         print(f"Shape after avg_fnt: {avg_feats.shape}")    # torch.Size([64, 7])
-                
-        #         # Flatten the tensor to remove spatial dimensions
-        #         avg_feats = avg_feats.flatten(start_dim=1)  # Shape: [64, 1024] 
-        #         print(f"Shape after flattening: {avg_feats.shape}") 
-
-        #     else:
-        #         raise RuntimeError(f"Unexpected shape of patch_feats: {patch_feats.shape}")
-
-        #     # Ensure avg_feats has the correct size for the classifier
-        #     print(f"avg_feats shape: {avg_feats.shape}")  
-        #     avg_feats = self.reduce_dim(avg_feats)
-        #     print("---------------here----------------")
-        #     print(f"avg_feats shape: {avg_feats.shape}")  
-            
-        #     labels = self.classifier(avg_feats)
-        #     print("here")
-            
-            
         elif self.args.visual_extractor == 'efficientnet':
-            patch_feats = self.model.extract_features(images)
-            # Pooling and final linear layer
-            avg_feats = self.model._avg_pooling(patch_feats)
-            x = avg_feats.flatten(start_dim=1)
-            x = self.model._dropout(x)
-            labels = self.model._fc(x)
+            patch_feats = self.model(images)
+            # print(patch_feats.shape)        # e.g., torch.Size([64, 1536, 7, 7]) depending on input size
+            avg_feats = self.avg_fnt(patch_feats).squeeze().reshape(-1, patch_feats.size(1))
+            # print(avg_feats.shape)        # e.g., torch.Size([64, 1536])
+            labels = self.classifier(avg_feats)
+            # return labels
             
         elif 'resnet' in self.visual_extractor:
             patch_feats = self.model(images)

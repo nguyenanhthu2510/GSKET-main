@@ -31,9 +31,9 @@ lr_ed: 0.0005
 # efficientnet: 1280
 # densenet: 1024
 # resnet101: 2048
-visual_extractor: swin
+visual_extractor: efficientnet
 pretrain_cnn_file:
-d_vf: 1024
+d_vf: 1536
 
 # Output Dir
 save_dir: results

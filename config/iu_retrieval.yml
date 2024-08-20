@@ -1,9 +1,9 @@
 _BASE_: iu.yml
 
 # Visual Extractor
-visual_extractor: swin
+visual_extractor: efficientnet
 #pretrain_cnn_file: code/torchxrayvision/scripts/output/mimic_ch-resnet101-pretrain-best.pt
-d_vf: 1024
+d_vf: 1536
 
 # Output Dir
 save_dir: results
