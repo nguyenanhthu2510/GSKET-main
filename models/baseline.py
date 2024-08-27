@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 from modules.visual_extractor import VisualExtractor
-from modules.Transformer import TransformerModel
+from modules.Transformer import TransformerModel, LSTMModel
 
 
 class BasicModel_v1(nn.Module):
@@ -22,7 +22,9 @@ class BasicModel_v1(nn.Module):
         self.proj_v1 = nn.Linear(args.d_vf, args.d_model)
         self.proj_v2 = nn.Linear(args.d_vf, args.d_model)
 
-        self.encoder_decoder = TransformerModel(args, tokenizer)
+        # self.encoder_decoder = TransformerModel(args, tokenizer)
+        self.encoder_decoder = LSTMModel(args, tokenizer)
+        
         self.proj = nn.Linear(args.num_labels, args.d_vf)
 
         # self.init_weight(self.proj_v1)

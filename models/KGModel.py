@@ -14,7 +14,7 @@ import numpy as np
 from stanza import Pipeline
 
 from modules.visual_extractor import VisualExtractor
-from modules.Transformer import TransformerModel, clones
+from modules.Transformer import TransformerModel, clones, LSTMModel
 from modules.text_encoder import TextEncoder, MHA_FF
 from modules.knowledge_retrieval import retrieval_kg
 
@@ -131,7 +131,9 @@ class KGModel_v1(nn.Module):
         self.proj_v2 = nn.Linear(args.d_vf, args.d_model)
 
         # image + knowledge -> text
-        self.generator = TransformerModel(args, tokenizer)
+        # self.generator = TransformerModel(args, tokenizer)
+        self.generator = LSTMModel(args, tokenizer)
+        
 
         # 图像和知识图谱的Attention     Attention of images and knowledge graphs
         self.attention = KG_MHA_FF(d_model=args.d_model,

@@ -381,3 +381,155 @@ class TransformerModel(AttModel):
             ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
         out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)) .to(memory.device))
         return out[:, -1], [ys.unsqueeze(0)]
+    
+    
+# class LSTMModel(AttModel):
+    def __init__(self, opt, tokenizer):
+        super(LSTMModel, self).__init__(opt, tokenizer)
+        self.opt = opt
+        self.d_model = getattr(opt, 'd_model', 512)
+        self.num_layers = getattr(opt, 'num_layers', 2)
+        self.dropout = getattr(opt, 'dropout', 0.1)
+        self.vocab_size = self.vocab_size + 1
+
+        # LSTM layers
+        self.embedding = nn.Embedding(self.vocab_size, self.d_model)
+        self.lstm = nn.LSTM(input_size=self.d_model, hidden_size=self.d_model, num_layers=self.num_layers,
+                            dropout=self.dropout, batch_first=True)
+        self.dropout_layer = nn.Dropout(self.dropout)
+        self.fc = nn.Linear(self.d_model, self.vocab_size)
+
+    def init_hidden(self, batch_size):
+        return (torch.zeros(self.num_layers, batch_size, self.d_model).to(self.fc.weight.device),
+                torch.zeros(self.num_layers, batch_size, self.d_model).to(self.fc.weight.device))
+
+    def forward(self, input_seq, hidden):
+        embedded = self.embedding(input_seq)
+        output, hidden = self.lstm(embedded, hidden)
+        output = self.dropout_layer(output)
+        output = self.fc(output)
+        return F.log_softmax(output, dim=-1), hidden
+
+    def _prepare_feature(self, fc_feats, att_feats, att_masks):
+        att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks)
+        memory = None
+        return fc_feats[..., :0], att_feats[..., :0], memory, att_masks
+
+    def _prepare_feature_forward(self, att_feats, att_masks=None, seq=None):
+        att_feats, att_masks = self.clip_att(att_feats, att_masks)
+        if att_masks is None:
+            att_masks = att_feats.new_ones(att_feats.shape[:2], dtype=torch.long)
+        att_masks = att_masks.unsqueeze(-2)
+        if seq is not None:
+            seq_mask = (seq.data != self.eos_idx) & (seq.data != self.pad_idx)
+            seq_mask[:, 0] = 1
+            seq_mask = seq_mask.unsqueeze(-2)
+        else:
+            seq_mask = None
+        return att_feats, seq, att_masks, seq_mask
+
+    def _forward(self, fc_feats, att_feats, seq, att_masks=None):
+        batch_size = seq.size(0)
+        hidden = self.init_hidden(batch_size)
+        outputs, hidden = self.forward(seq, hidden)
+        return outputs
+
+    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask):
+        if len(state) == 0:
+            ys = it.unsqueeze(1)
+        else:
+            ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
+        outputs, hidden = self.forward(ys, state)
+        return outputs[:, -1], [hidden]
+
+class LSTMModel(AttModel):
+
+    def make_model(self, input_size, hidden_size, num_layers=2, dropout=0.1):
+        "Helper: Construct an LSTM model from hyperparameters."
+        lstm = nn.LSTM(input_size, hidden_size, num_layers, dropout=dropout, batch_first=True)
+        return lstm
+
+    def __init__(self, opt, tokenizer):
+        super(LSTMModel, self).__init__(opt, tokenizer)
+        self.opt = opt
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.num_layers = getattr(opt, 'num_layers', 2)
+        self.hidden_size = getattr(opt, 'hidden_size', 512)
+        self.dropout = getattr(opt, 'dropout', 0.1)
+        self.input_size = self.att_feat_size  # Assuming input size matches the attention feature size
+        tgt_vocab = self.vocab_size + 1
+
+        self.att_embed = nn.Sequential(*(
+                ((nn.BatchNorm1d(self.att_feat_size),) if self.use_bn else ()) +
+                (nn.Linear(self.att_feat_size, self.hidden_size),
+                 nn.Dropout(self.dropout)) +
+                ((nn.BatchNorm1d(self.hidden_size),) if self.use_bn == 2 else ())))
+
+        self.embed = lambda x: x
+        self.fc_embed = lambda x: x
+        self.logit = nn.Linear(self.hidden_size, tgt_vocab)
+
+        self.model = self.make_model(self.input_size, self.hidden_size, 
+                                     num_layers=self.num_layers, 
+                                     dropout=self.dropout)
+
+    def init_hidden(self, bsz):
+        # Initialize the hidden state and cell state
+        h_0 = torch.zeros(self.num_layers, bsz, self.hidden_size).to(self.device)
+        c_0 = torch.zeros(self.num_layers, bsz, self.hidden_size).to(self.device)
+        return (h_0, c_0)
+
+    def _prepare_feature(self, fc_feats, att_feats, att_masks):
+        att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks)
+        memory, _ = self.model(att_feats)  # LSTM output
+        return fc_feats[..., :0], att_feats[..., :0], memory, att_masks
+
+    def _prepare_feature_forward(self, att_feats, att_masks=None, seq=None):
+        att_feats, att_masks = self.clip_att(att_feats, att_masks)
+        att_feats = pack_wrapper(self.att_embed, att_feats, att_masks)
+        if att_masks is None:
+            att_masks = att_feats.new_ones(att_feats.shape[:2], dtype=torch.long)
+        att_masks = att_masks.unsqueeze(-2)
+        if seq is not None:
+            seq_mask = (seq.data != self.eos_idx) & (seq.data != self.pad_idx)
+            seq_mask[:, 0] = 1  
+            seq_mask = seq_mask.unsqueeze(-2)
+
+            seq_per_img = seq.shape[0] // att_feats.shape[0]
+            if seq_per_img > 1:
+                att_feats, att_masks = utils.repeat_tensors(seq_per_img, [att_feats, att_masks])
+        else:
+            seq_mask = None
+
+        return att_feats, seq, att_masks, seq_mask
+
+    def _forward(self, fc_feats, att_feats, seq, att_masks=None):
+        if seq.ndim == 3:  
+            seq = seq.reshape(-1, seq.shape[2])
+        att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks, seq)
+        out, _ = self.model(att_feats)  # LSTM forward pass
+        outputs = F.log_softmax(self.logit(out), dim=-1)
+        return outputs
+
+    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask):
+        batch_size = it.size(0)  
+        if len(state) == 0:
+            ys = it.unsqueeze(1)
+            state = self.init_hidden(it.size(0))
+        else:
+            ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
+
+        if ys.dim() == 2:  # If ys is 2D, add a batch dimension
+            ys = ys.unsqueeze(1)  # Add batch dimension
+
+        # Ensure the input size matches the expected LSTM input size
+        if ys.size(-1) != self.input_size:
+            ys = ys[:, :, :self.input_size]  # Trim or adjust the input size to match LSTM input size
+
+        # Adjust state to match the current batch size
+        if state[0].size(1) !=  batch_size:
+            state = (state[0][:, : batch_size, :], state[1][:, : batch_size, :])
+
+        out, state = self.model(ys, state)  # LSTM forward pass with state
+        return out[:, -1], state
